@@ -1,5 +1,12 @@
 .App {
   text-align: center;
+  width: 100%;
+  min-height: 50%;
+}
+
+#maincanvas {
+  left: 0;
+  top: 0;
 }
 
 .App-logo {
