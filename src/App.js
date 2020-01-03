@@ -1,6 +1,7 @@
 import React from 'react';
 import './App.css';
 import DeckGL from '@deck.gl/react';
+import { FlyToInterpolator } from '@deck.gl/core';
 import { ScatterplotLayer, TextLayer, LineLayer } from '@deck.gl/layers';
 import { Table, FloatVector, Utf8Vector } from 'apache-arrow';
 var initSqlJS = require('sql.js');
@@ -8,7 +9,7 @@ var initSqlJS = require('sql.js');
 const initialViewState = {
   longitude: -121.88,
   latitude: 37.88, 
-  zoom: 8,
+  zoom: 10,
   pitch: 0,
   bearing: 0,
 }
@@ -38,7 +39,7 @@ const sqlselect = "select rowid from titles where titles match ? order by rowid 
 class App extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {titleLayers: [], pointLayer: [], searchboxtext: ""};
+    this.state = {titleLayers: [], pointLayer: [], searchboxtext: "", viewState: initialViewState};
     initSqlJS({locateFile: f => `./${f}`}).then(SQL => {
       var db = new SQL.Database();
       db.run(sqlddl);
@@ -121,6 +122,7 @@ class App extends React.Component {
             if(i % 100000 === 0) { console.log({insertTiming: endtime - starttime})}
             const sleep1 = await oneTick();
           }
+          console.log('everything is in fts4')
         })();
       }
       if(!!pointLayer && pointLayer.length === 0) {
@@ -129,7 +131,7 @@ class App extends React.Component {
           data: {length: pages.count()},
           pickable: true,
           onHover: ({index}) => { this.setState({pagepick: index+1}); return true },
-          radiusMinPixels: 1,
+          radiusMinPixels: 3,
           radiusMaxPixels: 20,
           getRadius: 10,
           wrapLongitude: true,
@@ -207,7 +209,7 @@ class App extends React.Component {
         </form>
       </div>
       <div>
-          <DeckGL initialViewState={initialViewState} controller={true} layers={layers} id={"maincanvas"} />
+          <DeckGL viewState={this.state.viewState} controller={true} layers={layers} id={"maincanvas"} onViewStateChange={({viewState}) => this.setState({viewState})} />
       </div>
     </div>);
   }
@@ -238,11 +240,18 @@ class App extends React.Component {
     const id = searchresults.get(searchboxtext);
     if(!!id) {
       this.setState({pagepick: id+1})
-      //initialViewState.longitude = lng[id];
-      //initialViewState.latitude = lat[id];
+      this.setState({viewState: {
+        ...this.state.viewState,
+        longitude: lng[id],
+        latitude: lat[id],
+        transitionDuration: '2000',
+        transitionInterpolator: new FlyToInterpolator(),
+        transitionEasing: t => smoothstep(smoothstep(t)),
+      }});
     }
   }
 }
 
+const smoothstep = t => 3 * t * t - 2 * t * t * t;
 
 export default App;
