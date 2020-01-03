@@ -9,6 +9,16 @@
   top: 0;
 }
 
+#searchresults {
+  z-index: 999;
+  background-color: aliceblue;
+  position: absolute;
+  left: 0.25in;
+  top: 0.25in;
+  margin: 0.25in;
+  padding: 0.25in;
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
