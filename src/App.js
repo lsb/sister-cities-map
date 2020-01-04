@@ -218,7 +218,7 @@ class App extends React.Component {
     const v = event.target.value;
     this.setState({searchboxtext: v});
     const { db, title } = this.state;
-    if(this.state.searchresults && this.state.searchresults.get(v)) {
+    if(this.state.searchresults && this.state.searchresults.has(v)) {
       // if the current input was in the search results the last time, user probably clicked from the autocomplete, so this is a submit
       setTimeout(() => this.handleSearchboxSubmit(), 0);
       return;
@@ -238,7 +238,7 @@ class App extends React.Component {
     if(event) { event.preventDefault(); }
     const { searchboxtext, searchresults, lat, lng } = this.state;
     const id = searchresults.get(searchboxtext);
-    if(!!id) {
+    if (searchresults.has(searchboxtext)) {
       this.setState({pagepick: id+1})
       this.setState({viewState: {
         ...this.state.viewState,
