@@ -60,58 +60,38 @@ class App extends React.Component {
     let layers = [];
     if(this.state != null && this.state.pages != null) {
       const { pages, lng, lat, title, characterSet, pagepick, sims, titleLayers, pointLayer, db } = this.state;
-      let titleBatchSize = 10;
-      const titleBatchSizeMax = 100000;
-      const maxtitles = 1; // or maybe lng.length;
+      const maxtitles = 100000;
       const titleid = `titles${pages.count()}`;
       // performance SIGNIFICANTLY increases for a million points and strings
       // when you reuse the same objects every render call
       // when reusing text and making new points, the perf drops from 10fps to 1fps
       // making new text takes about a minute so that is a nonstarter
+      // TODO: optimize TextLayer to be able to render a million strings into GPU buffers for 20M multi-icons
       if(!!titleLayers && titleLayers.length === 0 && !!db) {
         titleLayers.unshift(null); // close the latch
-        console.log('close the latch');
-        const mkBatch = (offset) => new TextLayer({
-          id: `${titleid}-${offset}`,
-          data: {length: Math.min(lng.length - offset, titleBatchSize)},
-          pickable: !true,
-          onHover: ({index}) => this.setState({pagepick: offset+index+1}),
+        setTimeout(() => titleLayers.push(new TextLayer({
+          id: `${titleid}`,
+          data: {length: maxtitles},
+          pickable: true,
+          onHover: ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null}),
           characterSet,
           backgroundColor: [255,255,155],
-          getText: (object, {index}) => title.get(offset + index),
-          getSize: (object, {index}) => Math.max(10, 1024 * 1024 * 64 / Math.pow(offset + index + 1, 1.1)),
+          getText: (d,{index}) => title.get(maxtitles - 1 - index),
+          getSize: (d,{index}) => Math.max(8.57, 1024 * 1024 * 64 / Math.pow(maxtitles - 1 - index + 8.57, 1.1)),
           sizeMaxPixels: 20,
           sizeUnits: 'meters',
-          fontSettings: {buffer: 5},
           wrapLongitude: true,
-          getPosition: (object, {index,data,target}) => {
-            target[0] = lng[offset + index];
-            target[1] = lat[offset + index];
-            target[2] = 0; //1024.0 * 1024.0 / (offset + index + 1); // bug: this does not effect textlayer overlaps
+          getPosition: (d, {index,target}) => {
+            target[0] = lng[maxtitles - 1 - index];
+            target[1] = lat[maxtitles - 1 - index];
             return target;
           },
-          parameters: {depthTest: true},
-        });
-        const timeoutTick = () => new Promise(r => setTimeout(r,1000));
-        const oneTick = () => new Promise(r => setTimeout(r, 0));
-        (async () => {
-          for(let i = 0; i < maxtitles;) {
-            console.log(`batch ${i}`);
-            const batch = mkBatch(i);
-            const sleep1 = await timeoutTick();
-            titleLayers.unshift(batch);
-            this.setState({maxOffset: i+titleBatchSize});
-            const sleep2 = await timeoutTick();
-            i += titleBatchSize;
-            titleBatchSize = Math.min(titleBatchSizeMax, Math.floor(titleBatchSize * 2));
-          }
-          console.log(titleLayers[titleLayers.length - 2]);
-        })();
+        })), 1000);
         (async () => {
           const batchSize = 250;
           const max = lng.length;
           const defaultInsert = db.prepare(sqlinsertN(batchSize));
-          console.log('here we go!')
+          const startInsert = Date.now();
           for(let i = 0; i < max; i+= batchSize ) {
             const starttime = Date.now();
             const insertcount = Math.min(max-i-1, batchSize);
@@ -120,37 +100,36 @@ class App extends React.Component {
             insert.run(insertvals);
             const endtime = Date.now();
             if(i % 100000 === 0) { console.log({insertTiming: endtime - starttime})}
-            const sleep1 = await oneTick();
+            const sleep1 = await delayTick(0);
           }
-          console.log('everything is in fts4')
+          const endInsert = Date.now();
+          console.log(`fts4 insertion took ${endInsert - startInsert}`);
         })();
       }
       if(!!pointLayer && pointLayer.length === 0) {
         pointLayer.push(new ScatterplotLayer({
-          id: `points-${pages.count()}`,
-          data: {length: pages.count()},
+          id: `points-${lng.length}`,
+          data: {length: lng.length},
           pickable: true,
-          onHover: ({index}) => { this.setState({pagepick: index+1}); return true },
-          radiusMinPixels: 3,
+          onHover: ({index, picked}) => { this.setState({pagepick: !picked ? null : lng.length - 1 - index + 1 }); },
+          radiusMinPixels: 2,
           radiusMaxPixels: 20,
           getRadius: 10,
           wrapLongitude: true,
           getPosition: (object, {index,data,target}) => {
-            target[0] = lng[index];
-            target[1] = lat[index];
-            target[2] = 1 / (index+1024.0*1024.0);
+            target[0] = lng[lng.length - 1 - index];
+            target[1] = lat[lng.length - 1 - index];
             return target;
           },
           getFillColor: [0,100,200],
           getLineColor: [0,0,0],
-          parameters: {depthTest: true},
         }));
       }
       if(!!titleLayers && !!pointLayer) { layers.push(...pointLayer, ...titleLayers) }
       if(!!pagepick && !!sims) {
+        const pagepickcoords = [lng[pagepick - 1], lat[pagepick - 1]];
         const pagesims = Array.from(sims.get(pagepick).values()).filter(n => n > 0 && (n >> 8) !== pagepick);
         const {context: {viewport}} = pointLayer[0];
-        const pagepickcoords = [lng[pagepick - 1], lat[pagepick - 1]];
         const pagesimlats = pagesims.map(p => lat[(p >> 8) - 1]);
         const pagesimlngs = pagesims.map(p => lng[(p >> 8) - 1]);
         const pagesimrgbs = pagesims.map(p => [255 - (p & 255), Math.min(5 * (p & 255),255), Math.min(5 * (p & 255),255)]);
@@ -253,5 +232,6 @@ class App extends React.Component {
 }
 
 const smoothstep = t => 3 * t * t - 2 * t * t * t;
+const delayTick = (delay) => new Promise(r => setTimeout(r, delay));
 
 export default App;
