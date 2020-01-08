@@ -132,7 +132,7 @@ class App extends React.Component {
         const {context: {viewport}} = pointLayer[0];
         const pagesimlats = pagesims.map(p => lat[(p >> 8) - 1]);
         const pagesimlngs = pagesims.map(p => lng[(p >> 8) - 1]);
-        const pagesimrgbs = pagesims.map(p => [255 - (p & 255), Math.min(5 * (p & 255),255), Math.min(5 * (p & 255),255)]);
+        const pagesimrgbs = pagesims.map(p => [Math.max(0, 255 - 5 * (p & 255)), Math.min(2 * (p & 255), 255), Math.min(5 * (p & 255),255)]);
         const [sourceX, sourceY] = viewport.project(pagepickcoords);
         const pagesimangles = pagesims.map((p,i) => {
           const [targetX, targetY] = viewport.project([pagesimlngs[i], pagesimlats[i]]);
