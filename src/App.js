@@ -65,24 +65,28 @@ class App extends React.Component {
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
       if(!!titleLayers && titleLayers.length === 0 && !!db) {
         titleLayers.unshift(null); // close the latch
-        setTimeout(() => titleLayers.push(new TextLayer({
-          id: `${titleid}`,
-          data: {length: maxtitles},
-          pickable: true,
-          onHover: ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null}),
-          characterSet,
-          backgroundColor: [255,255,155],
-          getText: (d,{index}) => title.get(maxtitles - 1 - index),
-          getSize: (d,{index}) => Math.max(8.57, 1024 * 1024 * 64 / Math.pow(maxtitles - 1 - index + 8.57, 1.1)),
-          sizeMaxPixels: 20,
-          sizeUnits: 'meters',
-          wrapLongitude: true,
-          getPosition: (d, {index,target}) => {
-            target[0] = lng[maxtitles - 1 - index];
-            target[1] = lat[maxtitles - 1 - index];
-            return target;
-          },
-        })), 1000);
+        setTimeout(() => {
+          titleLayers.push(new TextLayer({
+            id: `${titleid}`,
+            data: {length: maxtitles}, // I *think* you get O(n^2) behavior by copying buffers around to make them contiguous if you do an  async iterable like using rangeInChunksOf({max: maxtitles, chunkSize: 1000}),
+            pickable: true,
+            onHover: ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null}),
+            characterSet,
+            backgroundColor: [255,230,170],
+            getText: (d,{index}) => `  ${title.get(maxtitles - 1 - index)}  `,
+            getSize: (d,{index}) => Math.max(8.57, 1024 * 1024 * 64 / Math.pow(maxtitles - 1 - index + 8.57, 1.15)),
+            sizeMaxPixels: 20,
+            sizeUnits: 'meters',
+            wrapLongitude: true,
+            fontFamily: '"Roboto Slab"',
+            getPosition: (d, {index,target}) => {
+              target[0] = lng[maxtitles - 1 - index];
+              target[1] = lat[maxtitles - 1 - index];
+              return target;
+            },
+          }));
+          setTimeout((() => this.setState({maxtitles})), 1000);
+        }, 1000);
         (async () => {
           const batchSize = 250;
           const max = lng.length;
@@ -99,7 +103,9 @@ class App extends React.Component {
             const sleep1 = await delayTick(0);
           }
           const endInsert = Date.now();
-          console.log(`fts4 insertion took ${endInsert - startInsert}`);
+          const ftsloadtime = endInsert - startInsert;
+          console.log(`fts4 insertion took ${ftsloadtime}`);
+          this.setState({ftsloadtime});
         })();
       }
       if(!!pointLayer && pointLayer.length === 0) {
@@ -166,7 +172,13 @@ class App extends React.Component {
     }
     return (
     <div>
+      <div id="colophon">Made in Oakland, 2020, by Lee Butterman.</div>
       <div id="searchresults">
+        <div>
+          {this.state.lng ? `${this.state.lng.length} places. ` : "Loading places. "}
+          {this.state.sims ? "" : "Loading similarities. "}
+          {this.state.maxtitles ? "" : "Adding place labels. "}
+        </div>
         <form onSubmit={e => this.handleSearchboxSubmit(e)}>
           <label>
             Find place:&nbsp;
