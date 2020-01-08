@@ -142,7 +142,7 @@ class App extends React.Component {
         const simlines = new LineLayer({
           id: `line-layer-${pagepick}`,
           data: pagesims,
-          getWidth: 5,
+          getWidth: 20,
           getSourcePosition: pagepickcoords,
           getTargetPosition: (d,{index}) => [pagesimlngs[index], pagesimlats[index]],
           getColor: (d,{index}) => pagesimrgbs[index],
