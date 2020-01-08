@@ -173,7 +173,7 @@ class App extends React.Component {
             <input type="text" list="places" autoComplete="off" value={(this.state || {}).searchboxtext} onChange={e => this.handleSearchboxInput(e)} />
             <datalist id="places">{
               Array.from(((this.state || {}).searchresults || (new Map())).keys()).map(s => (
-                <option value={s} />
+                <option key={s} value={s}>{s}</option>
               ))
             }</datalist>
           </label>
