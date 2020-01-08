@@ -128,6 +128,7 @@ class App extends React.Component {
           console.log(`pagepick ${pagepick}, pagepickcoords ${JSON.stringify(pagepickcoords)}`);
         }
         const pagesims = Array.from(sims.get(pagepick).values()).filter(n => n > 0 && (n >> 8) !== pagepick);
+        pagesims.sort((a,b) => (b & 255) - (a & 255));
         const {context: {viewport}} = pointLayer[0];
         const pagesimlats = pagesims.map(p => lat[(p >> 8) - 1]);
         const pagesimlngs = pagesims.map(p => lng[(p >> 8) - 1]);
