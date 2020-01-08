@@ -55,7 +55,7 @@ class App extends React.Component {
     let layers = [];
     if(this.state != null && this.state.pages != null) {
       const { pages, lng, lat, title, characterSet, pagepick, sims, titleLayers, pointLayer, db } = this.state;
-      const maxtitles = 100000;
+      const maxtitles = 250000;
       const titleid = `titles${pages.count()}`;
       // performance SIGNIFICANTLY increases for a million points and strings
       // when you reuse the same objects every render call
