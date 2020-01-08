@@ -7,8 +7,8 @@ import { Table, FloatVector, Utf8Vector } from 'apache-arrow';
 var initSqlJS = require('sql.js');
 
 const initialViewState = {
-  longitude: -121.88,
-  latitude: 37.88, 
+  longitude: -73.99,
+  latitude: 40.69,
   zoom: 10,
   pitch: 0,
   bearing: 0,
