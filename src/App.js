@@ -147,28 +147,21 @@ class App extends React.Component {
           getTargetPosition: (d,{index}) => [pagesimlngs[index], pagesimlats[index]],
           getColor: (d,{index}) => pagesimrgbs[index],
         });
-        const simtexts = pagesims.map((p,i) => new TextLayer({
-          id: `text-layer-${pagepick}-${i}`,
-          data: {length: 1},
-          characterSet,
-          backgroundColor: pagesimrgbs[i],
-          getText: () => `${shimFromCenter}${title.get((pagesims[i] >> 8) - 1)}`,
-          getSize: 20,
-          getPosition: pagepickcoords,
-          getAngle: pagesimangles[i],
-          getTextAnchor: 'start',
-        }));
-        simtexts.push(new TextLayer({
-          id: `this-text-${pagepick}`,
-          data: {length: 1},
-          characterSet,
-          backgroundColor: [255,255,255],
-          getText: () => title.get(pagepick - 1),
-          getSize: 20,
-          getPosition: pagepickcoords,
-        }));
         layers.push(simlines);
-        layers.push(...simtexts);
+        const monochromesimtexts = new TextLayer({
+          id: `text-layer-${pagepick}`,
+          data: {length: pagesims.length + 1},
+          characterSet,
+          backgroundColor: [234,255,234],
+          fontFamily: '"Roboto Slab"',
+          getSize: 20,
+          getPosition: pagepickcoords,
+          getAngle: ((d,{index}) => index === pagesims.length ? 0 : pagesimangles[index]),
+          getTextAnchor: ((d,{index}) => index === pagesims.length ? 'middle' : 'start'),
+          getColor: ((d, {index}) => index === pagesims.length ? [0,0,0] : pagesimrgbs[index]),
+          getText: ((d, {index}) => index === pagesims.length ? title.get(pagepick-1) : `${shimFromCenter}${title.get((pagesims[index] >> 8) - 1)}  `),
+        });
+        layers.push(monochromesimtexts);
       }
     }
     return (
