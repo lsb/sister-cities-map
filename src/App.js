@@ -198,7 +198,7 @@ class App extends React.Component {
     if(db && title) {
       const searchresults = new Map();
       const statement = db.prepare(sqlselect);
-      statement.bind([`${v}*`]);
+      statement.bind([inputToFTSQuery(v)]);
       while (statement.step()) {
         const rowid = statement.getAsObject().rowid;
         searchresults.set(title.get(rowid), rowid);
@@ -224,6 +224,7 @@ class App extends React.Component {
   }
 }
 
+const inputToFTSQuery = (s) => s.toLocaleLowerCase().split(/[^a-z0-9\u0080-\uFFFF]+/).filter(n => n.length > 0).join(' NEAR ') + '*';
 const smoothstep = t => 3 * t * t - 2 * t * t * t;
 const delayTick = (delay) => new Promise(r => setTimeout(r, delay));
 
