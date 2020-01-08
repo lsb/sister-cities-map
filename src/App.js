@@ -124,6 +124,9 @@ class App extends React.Component {
       if(!!titleLayers && !!pointLayer) { layers.push(...pointLayer, ...titleLayers) }
       if(!!pagepick && !!sims) {
         const pagepickcoords = [lng[pagepick - 1], lat[pagepick - 1]];
+        if(!Number.isFinite(pagepickcoords[0]) || !Number.isFinite(pagepickcoords[1])) {
+          console.log(`pagepick ${pagepick}, pagepickcoords ${JSON.stringify(pagepickcoords)}`);
+        }
         const pagesims = Array.from(sims.get(pagepick).values()).filter(n => n > 0 && (n >> 8) !== pagepick);
         const {context: {viewport}} = pointLayer[0];
         const pagesimlats = pagesims.map(p => lat[(p >> 8) - 1]);
