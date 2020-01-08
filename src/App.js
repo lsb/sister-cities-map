@@ -117,7 +117,7 @@ class App extends React.Component {
             target[1] = lat[lng.length - 1 - index];
             return target;
           },
-          getFillColor: [0,100,200],
+          getFillColor: [100,100,50],
           getLineColor: [0,0,0],
         }));
       }
