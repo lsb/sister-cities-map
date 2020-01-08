@@ -47,12 +47,7 @@ class App extends React.Component {
     })
   }
   componentDidMount() {
-    // const lngs = [-122.268388,-113.884488,-113.765388];
-    // const lats = [  37.793888,  41.318988,  41.218888];
-    // const titles = ["Dentelé huitième", "ἥλιοκύλινδροι basecamp"," Ἥλιοκύλινδροι overlook"];
-    // const minipages = Table.new([FloatVector.from(Float32Array.from(lngs)), FloatVector.from(Float32Array.from(lats)), Utf8Vector.from(titles)], ['lng','lat','title']);
     const updatepages = (pages) => this.setState({pages, titleLayers: [], pointLayer: [], lng: pages.getColumn('lng').toArray(), lat: pages.getColumn('lat').toArray(), title: pages.getColumn('title'), characterSet: utf8vectorToAtlas(pages.getColumn('title'))});
-    //updatepages(minipages);
     Table.from(fetch("./pages.noindex.arrow")).then(p => updatepages(p));
     Table.from(fetch("./topsPacked20.noindex.arrow")).then(sims => this.setState({sims}))
   }
