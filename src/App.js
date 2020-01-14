@@ -148,25 +148,26 @@ class App extends React.Component {
           characterSet,
           backgroundColor: [234,255,234],
           fontFamily: '"Roboto Slab"',
-          getSize: 20,
+          getSize: 30,
           getPosition: pagepickcoords,
           getAngle: ((d,{index}) => index === pagesims.length ? 0 : pagesimangles[index]),
           getTextAnchor: ((d,{index}) => index === pagesims.length ? 'middle' : 'start'),
           getColor: ((d, {index}) => index === pagesims.length ? [0,0,0] : pagesimrgbs[index]),
-          getText: ((d, {index}) => index === pagesims.length ? title.get(pagepick-1) : `${shimFromCenter}${title.get((pagesims[index] >> 8) - 1)}  `),
+          getText: ((d, {index}) => index === pagesims.length ? `    ${title.get(pagepick-1)}    ` : `${shimFromCenter}${title.get((pagesims[index] >> 8) - 1)}  `),
         });
         layers.push(monochromesimtexts);
       }
     }
     return (
     <div>
-      <div id="colophon">Made in Oakland, 2020, by Lee Butterman.</div>
+      <div id="colophon">© Lee Butterman 2020. Made in Oakland, California.</div>
       <div id="searchresults">
         <div>
           {lng ? `${lng.length} places. ` : "Loading places. "}
           {sims ? "" : "Loading similarities. "}
           {this.state.maxtitles ? "" : "Adding place labels. "}
         </div>
+        <br/>
         <form onSubmit={e => this.handleSearchboxSubmit(e)}>
           <div>
             <input id="isfar" type="checkbox" checked={onlyFar} onChange={e => this.setState({onlyFar: e.target.checked})} disabled={!sims} />
@@ -220,7 +221,8 @@ class App extends React.Component {
         ...this.state.viewState,
         longitude: lng[id],
         latitude: lat[id],
-        transitionDuration: '2000',
+        zoom: 11,
+        transitionDuration: 'auto',
         transitionInterpolator: new FlyToInterpolator(),
         transitionEasing: t => smoothstep(smoothstep(t)),
       }});
