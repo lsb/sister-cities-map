@@ -14,6 +14,7 @@ const initialViewState = {
   pitch: 0,
   bearing: 0,
 }
+const hoverDelayToHash = 1000;
 
 export function utf8vectorToAtlas(strings) {
   return ([" ","!","\"","$","&","'","(",")","*","+",",","-",".","/","0","1","2","3","4","5","6","7","8","9",":",";","=","?","@","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","`","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","~","«","°","³","´","·","º","»","½","À","Á","Â","Ä","Å","Æ","Ç","È","É","Ì","Í","Î","Ð","Ñ","Ò","Ó","Ô","Õ","Ö","×","Ø","Ú","Ü","Ý","Þ","ß","à","á","â","ã","ä","å","æ","ç","è","é","ê","ë","ì","í","î","ï","ð","ñ","ò","ó","ô","õ","ö","ø","ù","ú","û","ü","ý","þ","ÿ","Ā","ā","ă","Ą","ą","Ć","ć","Ċ","ċ","Č","č","Ď","ď","Đ","đ","Ē","ē","ĕ","ė","ę","ě","Ğ","ğ","Ġ","ġ","Ģ","ģ","Ħ","ħ","ĩ","Ī","ī","į","İ","ı","Ķ","ķ","Ļ","ļ","Ľ","ľ","Ł","ł","ń","Ņ","ņ","Ň","ň","ŋ","Ō","ō","ŏ","Ő","ő","Œ","œ","ŕ","Ř","ř","Ś","ś","ŝ","Ş","ş","Š","š","Ţ","ţ","Ť","ť","ũ","Ū","ū","ŭ","ů","ű","ų","Ŵ","ŵ","ŷ","Ź","ź","Ż","ż","Ž","ž","Ə","ơ","Ư","ư","ǁ","ǂ","ǃ","ǫ","Ǵ","ǵ","Ș","ș","Ț","ț","ə","ʔ","ʹ","ʻ","ʼ","ʽ","ʿ","̀","́","̄","̨","̱","Π","ά","έ","α","γ","η","ι","λ","ν","ο","ρ","τ","υ","φ","і","ا","ة","ت","ح","ف","ḍ","ḏ","ḥ","ḩ","Ḱ","ḱ","Ḵ","ḵ","Ḷ","ḷ","ḻ","ṇ","ṟ","ṣ","ṭ","ṯ","ẁ","Ẕ","ạ","Ả","ả","Ấ","ấ","ầ","ẩ","ẫ","ậ","ắ","ằ","ẵ","ặ","Ẹ","ẹ","ẻ","ẽ","ế","ề","ể","ễ","ệ","ỉ","ị","ọ","ỏ","ố","ồ","ổ","ỗ","ộ","ớ","ờ","ở","ợ","ụ","ủ","Ứ","ứ","ừ","ử","ữ","ự","ỳ","ỷ","ỹ","–","—","‘","’","“","”","†","•","′","№","−","々","の","ガ","ヒ","モ","ン","人","族","ꞌ"]);
@@ -38,7 +39,8 @@ const sqlselect = "select rowid from titles where titles match ? order by rowid 
 class App extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {titleLayers: [], pointLayer: [], searchboxtext: "", viewState: initialViewState, onlyFar: true};
+    const placeToZoom = decodeURI(window.location.hash.slice(1));
+    this.state = {placeToZoom, titleLayers: [], pointLayer: [], searchboxtext: "", viewState: initialViewState, onlyFar: true};
     initSqlJS({locateFile: f => `./${f}`}).then(SQL => {
       fetch("./autocomplete.db").then(resp =>
         resp.arrayBuffer().then(b =>
@@ -56,9 +58,19 @@ class App extends React.Component {
       return (<h1>loading very soon!</h1>);
     }
     let layers = [];
-    const { pages, lng, lat, title, characterSet, pagepick, allsims, farsims, onlyFar, titleLayers, pointLayer, db } = this.state;
+    const { pages, lng, lat, title, characterSet, pagepick, allsims, farsims, onlyFar, titleLayers, pointLayer, db, placeToZoom, finishedZoomOnLoad } = this.state;
     const sims = onlyFar ? farsims : allsims;
     if(pages != null) {
+      if(db && lat && lng && title && placeToZoom !== null) {
+        const firstSuggestion = inputToLabelledIds({db, title, input: placeToZoom}).find(({label}) => label === placeToZoom);
+        if(!firstSuggestion) {
+          this.setState({placeToZoom: null, finishedZoomOnLoad: true});
+        } else {
+          const initialMove = this.zoomTo({pageIndex: firstSuggestion.value, anchor: placeToZoom});
+          initialMove.viewState.onTransitionEnd = () => this.setState({finishedZoomOnLoad: true});
+          this.setState({...initialMove, placeToZoom: null});
+        }
+      }
       const maxtitles = 250000;
       const titleid = `titles${pages.count()}`;
       // performance SIGNIFICANTLY increases for a million points and strings
@@ -67,35 +79,33 @@ class App extends React.Component {
       // making new text takes about a minute so that is a nonstarter
       // TODO: optimize TextLayer to be able to render a million strings into GPU buffers for 20M multi-icons
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
-      if(!!titleLayers && db && titleLayers.length === 0) {
+      if(!!titleLayers && db && titleLayers.length === 0 && finishedZoomOnLoad) {
         titleLayers.unshift(null); // close the latch
         const dlng = 10000;
         const dlat = dlng/2;
         const didx = (longitude,latitude) => Math.round((dlng-1)/(longitude+180))*dlat+Math.round((dlat-1)/(latitude+90));
-        setTimeout(() => {
-          const density = new Float32Array(dlat * dlng);
-          const rankInDensity = Float32Array.from({length: maxtitles}, (v,i) => ++density[didx(lng[i],lat[i])] );
-          titleLayers.push(new TextLayer({
-            id: `${titleid}`,
-            data: {length: maxtitles}, // I *think* you get O(n^2) behavior by copying buffers around to make them contiguous if you do an  async iterable like using rangeInChunksOf({max: maxtitles, chunkSize: 1000}),
-            pickable: true,
-            onHover: ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null}),
-            characterSet,
-            backgroundColor: [255,230,170],
-            getText: (d,{index}) => `  ${title.get(maxtitles - 1 - index)}  `,
-            getSize: (d,{index}) => Math.max(8.57, 1024 * 1024 * 32 / Math.pow(maxtitles - 1 - index + 4, 0.75) / Math.log1p(Math.pow(rankInDensity[maxtitles - 1 - index], 30) * Math.pow(Math.min(100*(maxtitles-index),density[didx(lng[maxtitles - 1 - index],lat[maxtitles - 1 - index])]),1.5))),
-            sizeMaxPixels: 30,
-            sizeUnits: 'meters',
-            wrapLongitude: true,
-            fontFamily: '"Roboto Slab"',
-            getPosition: (d, {index,target}) => {
-              target[0] = lng[maxtitles - 1 - index];
-              target[1] = lat[maxtitles - 1 - index];
-              return target;
-            },
-          }));
-          setTimeout((() => this.setState({maxtitles})), 1000);
-        }, 1000);
+        const density = new Float32Array(dlat * dlng);
+        const rankInDensity = Float32Array.from({length: maxtitles}, (v,i) => ++density[didx(lng[i],lat[i])] );
+        titleLayers.push(new TextLayer({
+          id: `${titleid}`,
+          data: {length: maxtitles}, // I *think* you get O(n^2) behavior by copying buffers around to make them contiguous if you do an  async iterable like using rangeInChunksOf({max: maxtitles, chunkSize: 1000}),
+          pickable: true,
+          onHover: ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null}),
+          characterSet,
+          backgroundColor: [255,230,170],
+          getText: (d,{index}) => `  ${title.get(maxtitles - 1 - index)}  `,
+          getSize: (d,{index}) => Math.max(8.57, 1024 * 1024 * 32 / Math.pow(maxtitles - 1 - index + 4, 0.75) / Math.log1p(Math.pow(rankInDensity[maxtitles - 1 - index], 30) * Math.pow(Math.min(100*(maxtitles-index),density[didx(lng[maxtitles - 1 - index],lat[maxtitles - 1 - index])]),1.5))),
+          sizeMaxPixels: 30,
+          sizeUnits: 'meters',
+          wrapLongitude: true,
+          fontFamily: '"Roboto Slab"',
+          getPosition: (d, {index,target}) => {
+            target[0] = lng[maxtitles - 1 - index];
+            target[1] = lat[maxtitles - 1 - index];
+            return target;
+          },
+        }));
+        this.setState({maxtitles});
       }
       if(!!pointLayer && pointLayer.length === 0) {
         pointLayer.push(new ScatterplotLayer({
@@ -157,6 +167,14 @@ class App extends React.Component {
           getText: ((d, {index}) => index === pagesims.length ? `    ${title.get(pagepick-1)}    ` : `${shimFromCenter}${title.get((pagesims[index] >> 8) - 1)}  `),
         });
         layers.push(monochromesimtexts);
+        setTimeout(() => {
+          if(pagepick === this.state.pagepick) { window.location.hash = title.get(pagepick-1) }
+        }, hoverDelayToHash);
+      }
+      if(!pagepick && finishedZoomOnLoad && window.location.hash.length > 1) {
+        setTimeout(() => {
+          if(this.state.pagepick === null) { window.location.hash = "" }
+        }, hoverDelayToHash)
       }
     }
     const autocompleteIsDisabled = !(db && title);
@@ -178,7 +196,7 @@ class App extends React.Component {
           options={ autocompleteIsDisabled ? [] : inputToLabelledIds({db, title, input: this.state.searchboxtext }) }
           value={ this.state.searchboxtext }
           onInputChange={ (searchboxtext) => this.setState({searchboxtext}) }
-          onChange={ ({label, value}) => this.setState({...this.zoomTo({pageIndex: value}), searchboxtext: label}) }
+          onChange={ ({label, value}) => this.setState({...this.zoomTo({pageIndex: value, anchor: label}), searchboxtext: label}) }
           isDisabled={autocompleteIsDisabled}
           placeholder={autocompleteIsDisabled ? 'Loading autocomplete' : 'Search'}
         />
@@ -189,7 +207,8 @@ class App extends React.Component {
     </div>);
   }
 
-  zoomTo({pageIndex}) {
+  zoomTo({pageIndex, anchor}) {
+    window.location.hash = anchor;
     return ({
       pagepick: pageIndex + 1,
       viewState: {
