@@ -231,6 +231,5 @@ const inputToRowids = function* ({db,input}) {
 }
 const inputToFTSQuery = (s) => s.toLocaleLowerCase().split(/[^a-z0-9\u0080-\uFFFF]+/).filter(n => n.length > 0).join(' NEAR ') + '*';
 const smoothstep = t => 3 * t * t - 2 * t * t * t;
-const delayTick = (delay) => new Promise(r => setTimeout(r, delay));
 
 export default App;
