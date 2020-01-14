@@ -194,21 +194,12 @@ class App extends React.Component {
   handleSearchboxInput(event) {
     const v = event.target.value;
     this.setState({searchboxtext: v});
-    const { db, title } = this.state;
-    if(this.state.searchresults && this.state.searchresults.has(v)) {
-      // if the current input was in the search results the last time, user probably clicked from the autocomplete, so this is a submit
+    const { db, title, searchresults } = this.state;
+    if(searchresults && searchresults.has(v)) { // submit ≝ user input = one search result
       setTimeout(() => this.handleSearchboxSubmit(), 0);
       return;
-    }
-    if(db && title) {
-      const searchresults = new Map();
-      const statement = db.prepare(sqlselect);
-      statement.bind([inputToFTSQuery(v)]);
-      while (statement.step()) {
-        const pageindex = statement.getAsObject().rowid - 1;
-        searchresults.set(title.get(pageindex), pageindex);
-      }
-      this.setState({searchresults});
+    } else if (db && title) {
+      this.setState({searchresults: inputToPageIndexMap({db,input:v,title})});
     }
   }
   handleSearchboxSubmit(event) {
@@ -230,6 +221,14 @@ class App extends React.Component {
   }
 }
 
+const inputToPageIndexMap = ({db,input,title}) => (new Map(Array.from(inputToRowids({db,input}), i => [title.get(i-1), i-1])));
+const inputToRowids = function* ({db,input}) {
+  const statement = db.prepare(sqlselect);
+  statement.bind([inputToFTSQuery(input)]);
+  while (statement.step()) {
+    yield statement.getAsObject().rowid;
+  }
+}
 const inputToFTSQuery = (s) => s.toLocaleLowerCase().split(/[^a-z0-9\u0080-\uFFFF]+/).filter(n => n.length > 0).join(' NEAR ') + '*';
 const smoothstep = t => 3 * t * t - 2 * t * t * t;
 const delayTick = (delay) => new Promise(r => setTimeout(r, delay));
