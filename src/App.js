@@ -37,7 +37,7 @@ const sqlselect = "select rowid from titles where titles match ? order by rowid 
 class App extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {titleLayers: [], pointLayer: [], searchboxtext: "", viewState: initialViewState};
+    this.state = {titleLayers: [], pointLayer: [], searchboxtext: "", viewState: initialViewState, onlyFar: true};
     initSqlJS({locateFile: f => `./${f}`}).then(SQL => {
       fetch("./autocomplete.db").then(resp =>
         resp.arrayBuffer().then(b =>
@@ -47,15 +47,17 @@ class App extends React.Component {
   componentDidMount() {
     const updatepages = (pages) => this.setState({pages, titleLayers: [], pointLayer: [], lng: pages.getColumn('lng').toArray(), lat: pages.getColumn('lat').toArray(), title: pages.getColumn('title'), characterSet: utf8vectorToAtlas(pages.getColumn('title'))});
     Table.from(fetch("./pages.noindex.arrow")).then(p => updatepages(p));
-    Table.from(fetch("./topsPacked20.noindex.arrow")).then(sims => this.setState({sims}))
+    Table.from(fetch("./topsFarPacked20.noindex.arrow")).then(farsims => this.setState({farsims}))
+    Table.from(fetch("./topsPacked20.noindex.arrow")).then(allsims => this.setState({allsims}))
   }
   render() {
     if(this.state == null) {
       return (<h1>loading very soon!</h1>);
     }
     let layers = [];
-    if(this.state != null && this.state.pages != null) {
-      const { pages, lng, lat, title, characterSet, pagepick, sims, titleLayers, pointLayer, db } = this.state;
+    const { pages, lng, lat, title, characterSet, pagepick, allsims, farsims, onlyFar, titleLayers, pointLayer, db } = this.state;
+    const sims = onlyFar ? farsims : allsims;
+    if(pages != null) {
       const maxtitles = 250000;
       const titleid = `titles${pages.count()}`;
       // performance SIGNIFICANTLY increases for a million points and strings
@@ -114,7 +116,7 @@ class App extends React.Component {
         if(!Number.isFinite(pagepickcoords[0]) || !Number.isFinite(pagepickcoords[1])) {
           console.log(`pagepick ${pagepick}, pagepickcoords ${JSON.stringify(pagepickcoords)}`);
         }
-        const pagesims = Array.from(sims.get(pagepick).values()).filter(n => n > 0 && (n >> 8) !== pagepick);
+        const pagesims = Array.from(sims.get(pagepick).values()).filter(n => n > 0);
         pagesims.sort((a,b) => (b & 255) - (a & 255));
         const {context: {viewport}} = pointLayer[0];
         const pagesimlats = pagesims.map(p => lat[(p >> 8) - 1]);
@@ -156,11 +158,15 @@ class App extends React.Component {
       <div id="colophon">Made in Oakland, 2020, by Lee Butterman.</div>
       <div id="searchresults">
         <div>
-          {this.state.lng ? `${this.state.lng.length} places. ` : "Loading places. "}
-          {this.state.sims ? "" : "Loading similarities. "}
+          {lng ? `${lng.length} places. ` : "Loading places. "}
+          {sims ? "" : "Loading similarities. "}
           {this.state.maxtitles ? "" : "Adding place labels. "}
         </div>
         <form onSubmit={e => this.handleSearchboxSubmit(e)}>
+          <div>
+            <input id="isfar" type="checkbox" checked={onlyFar} onChange={e => this.setState({onlyFar: e.target.checked})} />
+            <label for="isfar"> distant relations only </label>
+          </div>
           <label>
             Find place:&nbsp;
             <input type="text" list="places" autoComplete="off" value={(this.state || {}).searchboxtext} disabled={!db} placeholder={!db ? 'Loading autocomplete' : ''} onChange={e => this.handleSearchboxInput(e)} />
