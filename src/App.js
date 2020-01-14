@@ -66,7 +66,7 @@ class App extends React.Component {
       // making new text takes about a minute so that is a nonstarter
       // TODO: optimize TextLayer to be able to render a million strings into GPU buffers for 20M multi-icons
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
-      if(!!titleLayers && titleLayers.length === 0) {
+      if(!!titleLayers && db && titleLayers.length === 0) {
         titleLayers.unshift(null); // close the latch
         setTimeout(() => {
           titleLayers.push(new TextLayer({
@@ -164,8 +164,8 @@ class App extends React.Component {
         </div>
         <form onSubmit={e => this.handleSearchboxSubmit(e)}>
           <div>
-            <input id="isfar" type="checkbox" checked={onlyFar} onChange={e => this.setState({onlyFar: e.target.checked})} />
-            <label for="isfar"> distant relations only </label>
+            <input id="isfar" type="checkbox" checked={onlyFar} onChange={e => this.setState({onlyFar: e.target.checked})} disabled={!sims} />
+            <label for="isfar"> distant relations only {sims ? "" : "(loading)"} </label>
           </div>
           <label>
             Find place:&nbsp;
