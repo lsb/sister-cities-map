@@ -141,7 +141,8 @@ class App extends React.Component {
         const [sourceX, sourceY] = viewport.project(pagepickcoords);
         const pagesimangles = pagesims.map((p,i) => {
           const [targetX, targetY] = viewport.project([pagesimlngs[i], pagesimlats[i]]);
-          return Math.atan2(sourceY - targetY, targetX - sourceX) * 180 / Math.PI;
+          const d = Math.atan2(sourceY - targetY, targetX - sourceX) * 180 / Math.PI;
+          return (d + 360) % 360;
         });
         const shimFromCenter = Array.from({length: 50}).join(" ");
         const simlines = new LineLayer({
