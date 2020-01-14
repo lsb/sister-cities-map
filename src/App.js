@@ -68,7 +68,12 @@ class App extends React.Component {
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
       if(!!titleLayers && db && titleLayers.length === 0) {
         titleLayers.unshift(null); // close the latch
+        const dlng = 10000;
+        const dlat = dlng/2;
+        const didx = (longitude,latitude) => Math.round((dlng-1)/(longitude+180))*dlat+Math.round((dlat-1)/(latitude+90));
         setTimeout(() => {
+          const density = new Float32Array(dlat * dlng);
+          const rankInDensity = Float32Array.from({length: maxtitles}, (v,i) => ++density[didx(lng[i],lat[i])] );
           titleLayers.push(new TextLayer({
             id: `${titleid}`,
             data: {length: maxtitles}, // I *think* you get O(n^2) behavior by copying buffers around to make them contiguous if you do an  async iterable like using rangeInChunksOf({max: maxtitles, chunkSize: 1000}),
@@ -77,8 +82,8 @@ class App extends React.Component {
             characterSet,
             backgroundColor: [255,230,170],
             getText: (d,{index}) => `  ${title.get(maxtitles - 1 - index)}  `,
-            getSize: (d,{index}) => Math.max(8.57, 1024 * 1024 * 64 / Math.pow(maxtitles - 1 - index + 8.57, 1.15)),
-            sizeMaxPixels: 20,
+            getSize: (d,{index}) => Math.max(8.57, 1024 * 1024 * 32 / Math.pow(maxtitles - 1 - index + 4, 0.75) / Math.log1p(Math.pow(rankInDensity[maxtitles - 1 - index], 30) * Math.pow(Math.min(100*(maxtitles-index),density[didx(lng[maxtitles - 1 - index],lat[maxtitles - 1 - index])]),1.5))),
+            sizeMaxPixels: 30,
             sizeUnits: 'meters',
             wrapLongitude: true,
             fontFamily: '"Roboto Slab"',
