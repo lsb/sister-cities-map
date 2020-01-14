@@ -3,7 +3,7 @@ import './App.css';
 import DeckGL from '@deck.gl/react';
 import { FlyToInterpolator } from '@deck.gl/core';
 import { ScatterplotLayer, TextLayer, LineLayer } from '@deck.gl/layers';
-import { Table, FloatVector, Utf8Vector } from 'apache-arrow';
+import { Table } from 'apache-arrow';
 var initSqlJS = require('sql.js');
 
 const initialViewState = {
