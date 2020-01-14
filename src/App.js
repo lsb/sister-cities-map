@@ -57,7 +57,7 @@ class App extends React.Component {
     if(this.state == null) {
       return (<h1>loading very soon!</h1>);
     }
-    let layers = [];
+    let layers = []; let lhsSims = [];
     const { pages, lng, lat, title, characterSet, pagepick, allsims, farsims, onlyFar, titleLayers, pointLayer, db, placeToZoom, finishedZoomOnLoad } = this.state;
     const sims = onlyFar ? farsims : allsims;
     if(pages != null) {
@@ -171,6 +171,12 @@ class App extends React.Component {
         setTimeout(() => {
           if(pagepick === this.state.pagepick) { window.location.hash = title.get(pagepick-1) }
         }, hoverDelayToHash);
+        const simIndicesByAngle = Array.from({length: pagesims.length}, (v,i) => i);
+        simIndicesByAngle.sort((a,b) => pagesimangles[a] - pagesimangles[b]);
+        lhsSims = simIndicesByAngle.map(i => {
+          const pageIndex = (pagesims[i] >> 8)-1;
+          return ({color: pagesimrgbs[i], name: title.get(pageIndex), pageIndex});
+        });
       }
       if(!pagepick && finishedZoomOnLoad && window.location.hash.length > 1) {
         setTimeout(() => {
@@ -201,6 +207,19 @@ class App extends React.Component {
           isDisabled={autocompleteIsDisabled}
           placeholder={autocompleteIsDisabled ? 'Loading autocomplete' : 'Search'}
         />
+        <div id="radiallist">
+          { lhsSims.length > 0 ? (<div><br/>↶ Similar to {title.get(pagepick-1)}:</div>) : null}
+          {
+            lhsSims.map(({color, name, pageIndex}) => (
+              <a key={`lhs-${pagepick}-${pageIndex}`}
+                href="#"
+                onClick={(e) => { if(e) e.preventDefault(); this.setState({...this.zoomTo({pageIndex, anchor: name})})}}
+                style={{display: "block", color: "white", backgroundColor: `rgb(${color.join(',')})`}}>
+                { name }
+              </a>
+            ))
+          }
+        </div>
       </div>
       <div>
           <DeckGL viewState={this.state.viewState} controller={true} layers={layers} id={"maincanvas"} onViewStateChange={({viewState}) => this.setState({viewState})} />
