@@ -32,8 +32,6 @@ export function utf8vectorToAtlas(strings) {
   return atlas;
 }
 
-const sqlddl = "create virtual table titles using fts4(content='', title);";
-const sqlinsertN = n => `insert into titles (rowid, title) values ${Array.from({length: n}, () => '(?,?)').join(',')}`;
 const sqlselect = "select rowid from titles where titles match ? order by rowid limit 40";
 
 class App extends React.Component {
@@ -41,9 +39,9 @@ class App extends React.Component {
     super(props)
     this.state = {titleLayers: [], pointLayer: [], searchboxtext: "", viewState: initialViewState};
     initSqlJS({locateFile: f => `./${f}`}).then(SQL => {
-      var db = new SQL.Database();
-      db.run(sqlddl);
-      this.setState({db});
+      fetch("./autocomplete.db").then(resp =>
+        resp.arrayBuffer().then(b =>
+          this.setState({db: new SQL.Database(new Uint8Array(b))})));
     })
   }
   componentDidMount() {
@@ -52,6 +50,9 @@ class App extends React.Component {
     Table.from(fetch("./topsPacked20.noindex.arrow")).then(sims => this.setState({sims}))
   }
   render() {
+    if(this.state == null) {
+      return (<h1>loading very soon!</h1>);
+    }
     let layers = [];
     if(this.state != null && this.state.pages != null) {
       const { pages, lng, lat, title, characterSet, pagepick, sims, titleLayers, pointLayer, db } = this.state;
@@ -63,7 +64,7 @@ class App extends React.Component {
       // making new text takes about a minute so that is a nonstarter
       // TODO: optimize TextLayer to be able to render a million strings into GPU buffers for 20M multi-icons
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
-      if(!!titleLayers && titleLayers.length === 0 && !!db) {
+      if(!!titleLayers && titleLayers.length === 0) {
         titleLayers.unshift(null); // close the latch
         setTimeout(() => {
           titleLayers.push(new TextLayer({
@@ -87,26 +88,6 @@ class App extends React.Component {
           }));
           setTimeout((() => this.setState({maxtitles})), 1000);
         }, 1000);
-        (async () => {
-          const batchSize = 250;
-          const max = lng.length;
-          const defaultInsert = db.prepare(sqlinsertN(batchSize));
-          const startInsert = Date.now();
-          for(let i = 0; i < max; i+= batchSize ) {
-            const starttime = Date.now();
-            const insertcount = Math.min(max-i-1, batchSize);
-            const insert = insertcount === batchSize ? defaultInsert : db.prepare(sqlinsertN(max-i-1));
-            const insertvals = Array.from({length: insertcount*2}, (v,j) => ((j % 2) === 0) ? (i + (j >> 1)) : title.get(i + (j >> 1)) )
-            insert.run(insertvals);
-            const endtime = Date.now();
-            if(i % 100000 === 0) { console.log({insertTiming: endtime - starttime})}
-            const sleep1 = await delayTick(0);
-          }
-          const endInsert = Date.now();
-          const ftsloadtime = endInsert - startInsert;
-          console.log(`fts4 insertion took ${ftsloadtime}`);
-          this.setState({ftsloadtime});
-        })();
       }
       if(!!pointLayer && pointLayer.length === 0) {
         pointLayer.push(new ScatterplotLayer({
@@ -182,14 +163,14 @@ class App extends React.Component {
         <form onSubmit={e => this.handleSearchboxSubmit(e)}>
           <label>
             Find place:&nbsp;
-            <input type="text" list="places" autoComplete="off" value={(this.state || {}).searchboxtext} onChange={e => this.handleSearchboxInput(e)} />
+            <input type="text" list="places" autoComplete="off" value={(this.state || {}).searchboxtext} disabled={!db} placeholder={!db ? 'Loading autocomplete' : ''} onChange={e => this.handleSearchboxInput(e)} />
             <datalist id="places">{
               Array.from(((this.state || {}).searchresults || (new Map())).keys()).map(s => (
                 <option key={s} value={s}>{s}</option>
               ))
             }</datalist>
           </label>
-          <input type="submit" value="Go" />
+          <input type="submit" value="Go" disabled={!db} />
         </form>
       </div>
       <div>
@@ -212,8 +193,8 @@ class App extends React.Component {
       const statement = db.prepare(sqlselect);
       statement.bind([inputToFTSQuery(v)]);
       while (statement.step()) {
-        const rowid = statement.getAsObject().rowid;
-        searchresults.set(title.get(rowid), rowid);
+        const pageindex = statement.getAsObject().rowid - 1;
+        searchresults.set(title.get(pageindex), pageindex);
       }
       this.setState({searchresults});
     }
