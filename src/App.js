@@ -4,6 +4,7 @@ import DeckGL from '@deck.gl/react';
 import { FlyToInterpolator } from '@deck.gl/core';
 import { ScatterplotLayer, TextLayer, LineLayer } from '@deck.gl/layers';
 import { Table } from 'apache-arrow';
+import Select from 'react-select';
 var initSqlJS = require('sql.js');
 
 const initialViewState = {
@@ -158,6 +159,7 @@ class App extends React.Component {
         layers.push(monochromesimtexts);
       }
     }
+    const autocompleteIsDisabled = !(db && title);
     return (
     <div>
       <div id="colophon">© Lee Butterman 2020. Made in Oakland, California.</div>
@@ -168,22 +170,18 @@ class App extends React.Component {
           {this.state.maxtitles ? "" : "Adding place labels. "}
         </div>
         <br/>
-        <form onSubmit={e => this.handleSearchboxSubmit(e)}>
-          <div>
-            <input id="isfar" type="checkbox" checked={onlyFar} onChange={e => this.setState({onlyFar: e.target.checked})} disabled={!sims} />
-            <label for="isfar"> distant relations only {sims ? "" : "(loading)"} </label>
-          </div>
-          <label>
-            Find place:&nbsp;
-            <input type="text" list="places" autoComplete="off" value={this.state.searchboxtext} disabled={!db} placeholder={!db ? 'Loading autocomplete' : ''} onChange={e => this.handleSearchboxInput(e)} />
-            <datalist id="places">{
-              Array.from((this.state.searchresults || (new Map())).keys()).map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))
-            }</datalist>
-          </label>
-          <input type="submit" value="Go" disabled={!db} />
-        </form>
+        <div>
+          <input id="isfar" type="checkbox" checked={onlyFar} onChange={e => this.setState({onlyFar: e.target.checked})} disabled={!sims} />
+          <label htmlFor="isfar"> distant relations only {sims ? "" : "(loading)"} </label>
+        </div>
+        <Select
+          options={ autocompleteIsDisabled ? [] : inputToLabelledIds({db, title, input: this.state.searchboxtext }) }
+          value={ this.state.searchboxtext }
+          onInputChange={ (searchboxtext) => this.setState({searchboxtext}) }
+          onChange={ ({label, value}) => this.setState({...this.zoomTo({pageIndex: value}), searchboxtext: label}) }
+          isDisabled={autocompleteIsDisabled}
+          placeholder={autocompleteIsDisabled ? 'Loading autocomplete' : 'Search'}
+        />
       </div>
       <div>
           <DeckGL viewState={this.state.viewState} controller={true} layers={layers} id={"maincanvas"} onViewStateChange={({viewState}) => this.setState({viewState})} />
@@ -191,37 +189,23 @@ class App extends React.Component {
     </div>);
   }
 
-  handleSearchboxInput(event) {
-    const v = event.target.value;
-    this.setState({searchboxtext: v});
-    const { db, title, searchresults } = this.state;
-    if(searchresults && searchresults.has(v)) { // submit ≝ user input = one search result
-      setTimeout(() => this.handleSearchboxSubmit(), 0);
-      return;
-    } else if (db && title) {
-      this.setState({searchresults: inputToPageIndexMap({db,input:v,title})});
-    }
-  }
-  handleSearchboxSubmit(event) {
-    if(event) { event.preventDefault(); }
-    const { searchboxtext, searchresults, lat, lng } = this.state;
-    const id = searchresults.get(searchboxtext);
-    if (searchresults.has(searchboxtext)) {
-      this.setState({pagepick: id+1})
-      this.setState({viewState: {
+  zoomTo({pageIndex}) {
+    return ({
+      pagepick: pageIndex + 1,
+      viewState: {
         ...this.state.viewState,
-        longitude: lng[id],
-        latitude: lat[id],
-        zoom: 11,
+        longitude: this.state.lng[pageIndex],
+        latitude: this.state.lat[pageIndex],
+        zoom: this.state.onlyFar ? 9 : 11,
         transitionDuration: 'auto',
         transitionInterpolator: new FlyToInterpolator(),
         transitionEasing: t => smoothstep(smoothstep(t)),
-      }});
-    }
+      }
+    })
   }
 }
 
-const inputToPageIndexMap = ({db,input,title}) => (new Map(Array.from(inputToRowids({db,input}), i => [title.get(i-1), i-1])));
+const inputToLabelledIds = ({db,input,title}) => Array.from(inputToRowids({db,input}), i => ({value: i-1, label: title.get(i-1)}));
 const inputToRowids = function* ({db,input}) {
   const statement = db.prepare(sqlselect);
   statement.bind([inputToFTSQuery(input)]);
