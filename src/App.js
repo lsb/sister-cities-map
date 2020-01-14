@@ -174,9 +174,9 @@ class App extends React.Component {
           </div>
           <label>
             Find place:&nbsp;
-            <input type="text" list="places" autoComplete="off" value={(this.state || {}).searchboxtext} disabled={!db} placeholder={!db ? 'Loading autocomplete' : ''} onChange={e => this.handleSearchboxInput(e)} />
+            <input type="text" list="places" autoComplete="off" value={this.state.searchboxtext} disabled={!db} placeholder={!db ? 'Loading autocomplete' : ''} onChange={e => this.handleSearchboxInput(e)} />
             <datalist id="places">{
-              Array.from(((this.state || {}).searchresults || (new Map())).keys()).map(s => (
+              Array.from((this.state.searchresults || (new Map())).keys()).map(s => (
                 <option key={s} value={s}>{s}</option>
               ))
             }</datalist>
