@@ -42,16 +42,24 @@ class App extends React.Component {
     const placeToZoom = decodeURI(window.location.hash.slice(1));
     this.state = {placeToZoom, titleLayers: [], pointLayer: [], searchboxtext: "", viewState: initialViewState, onlyFar: true};
     initSqlJS({locateFile: f => `./${f}`}).then(SQL => {
-      fetch("./autocomplete.db").then(resp =>
-        resp.arrayBuffer().then(b =>
-          this.setState({db: new SQL.Database(new Uint8Array(b))})));
-    })
+      this.state.SQL = SQL;
+      this.makeAutocomplete();
+    });
   }
   componentDidMount() {
     const updatepages = (pages) => this.setState({pages, titleLayers: [], pointLayer: [], lng: pages.getColumn('lng').toArray(), lat: pages.getColumn('lat').toArray(), title: pages.getColumn('title'), characterSet: utf8vectorToAtlas(pages.getColumn('title'))});
+    fetch('./autocomplete.db').then(resp => resp.arrayBuffer().then(b => {
+      this.state.autocompleteBuffer = b;
+      this.makeAutocomplete()
+    }));
     Table.from(fetch("./pages.noindex.arrow")).then(p => updatepages(p));
     Table.from(fetch("./topsFarPacked20.noindex.arrow")).then(farsims => this.setState({farsims}))
     Table.from(fetch("./topsPacked20.noindex.arrow")).then(allsims => this.setState({allsims}))
+  }
+  makeAutocomplete() {
+    if(this.state.SQL && this.state.autocompleteBuffer) {
+      this.setState({db: new this.state.SQL.Database(new Uint8Array(this.state.autocompleteBuffer))});
+    }
   }
   render() {
     if(this.state == null) {
