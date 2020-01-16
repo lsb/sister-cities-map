@@ -53,8 +53,8 @@ class App extends React.Component {
       this.makeAutocomplete()
     }));
     Table.from(fetch("./pages.noindex.arrow")).then(p => updatepages(p));
-    Table.from(fetch("./topsFarPacked20.noindex.arrow")).then(farsims => this.setState({farsims}))
-    Table.from(fetch("./topsPacked20.noindex.arrow")).then(allsims => this.setState({allsims}))
+    Table.from(fetch("./topsFarPacked15.noindex.arrow")).then(farsims => this.setState({farsims}))
+    Table.from(fetch("./topsPacked15.noindex.arrow")).then(allsims => this.setState({allsims}))
   }
   makeAutocomplete() {
     if(this.state.SQL && this.state.autocompleteBuffer) {
