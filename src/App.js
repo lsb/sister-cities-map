@@ -70,6 +70,47 @@ class App extends React.Component {
     const sizes = Float32Array.from({length: count}, (v,i) => Math.max(8.57, 1024 * 1024 * 32 / Math.pow(i + 4, 0.75) / Math.log1p(Math.pow(rankInDensity[i], 30) * Math.pow(Math.min(100*(i+1),density[didx(lng[i],lat[i])]),1.5))));
     return ({ density, rankInDensity, sizes });
   }
+  makeTitles({lng,lat,title,count,characterSet, onHover}) {
+    const {sizes} = this.makeDensityHeatmap({lng, lat, count, sidelength: 10000});
+    return (new TextLayer({
+      id: `titles${count}`,
+      data: {length: count},
+      pickable: true,
+      onHover,
+      characterSet,
+      backgroundColor: [255,230,170],
+      getText: (d,{index}) => `  ${title.get(count - 1 - index)}  `,
+      getSize: (d,{index}) => sizes[count - 1 - index],
+      sizeMaxPixels: 30,
+      sizeUnits: 'meters',
+      wrapLongitude: true,
+      fontFamily: '"Roboto Slab"',
+      getPosition: (d, {index,target}) => {
+        target[0] = lng[count - 1 - index];
+        target[1] = lat[count - 1 - index];
+        return target;
+      },
+    }));
+  }
+  makePoints({lng,lat,onHover}) {
+    return (new ScatterplotLayer({
+      id: `points${lng.length}`,
+      data: {length: lng.length},
+      pickable: true,
+      onHover,
+      radiusMinPixels: 2,
+      radiusMaxPixels: 20,
+      getRadius: 10,
+      wrapLongitude: true,
+      getPosition: (object, {index,data,target}) => {
+        target[0] = lng[lng.length - 1 - index];
+        target[1] = lat[lng.length - 1 - index];
+        return target;
+      },
+      getFillColor: [100,100,50],
+      getLineColor: [0,0,0],
+    }));
+  }
   render() {
     if(this.state == null) {
       return (<h1>loading very soon!</h1>);
@@ -97,47 +138,13 @@ class App extends React.Component {
       // TODO: optimize TextLayer to be able to render a million strings into GPU buffers for 20M multi-icons
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
       if(!!titleLayers && db && titleLayers.length === 0 && finishedZoomOnLoad) {
-        titleLayers.unshift(null); // close the latch
-        const {sizes} = this.makeDensityHeatmap({lng, lat, count: maxtitles, sidelength: 10000});
-        titleLayers.push(new TextLayer({
-          id: `${titleid}`,
-          data: {length: maxtitles}, // I *think* you get O(n^2) behavior by copying buffers around to make them contiguous if you do an  async iterable like using rangeInChunksOf({max: maxtitles, chunkSize: 1000}),
-          pickable: true,
-          onHover: ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null}),
-          characterSet,
-          backgroundColor: [255,230,170],
-          getText: (d,{index}) => `  ${title.get(maxtitles - 1 - index)}  `,
-          getSize: (d,{index}) => sizes[maxtitles - 1 - index],
-          sizeMaxPixels: 30,
-          sizeUnits: 'meters',
-          wrapLongitude: true,
-          fontFamily: '"Roboto Slab"',
-          getPosition: (d, {index,target}) => {
-            target[0] = lng[maxtitles - 1 - index];
-            target[1] = lat[maxtitles - 1 - index];
-            return target;
-          },
-        }));
+        const onHover = ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null});
+        titleLayers.push(this.makeTitles({lng, lat, title, characterSet, onHover, count: maxtitles}));
         this.setState({maxtitles});
       }
       if(!!pointLayer && pointLayer.length === 0) {
-        pointLayer.push(new ScatterplotLayer({
-          id: `points-${lng.length}`,
-          data: {length: lng.length},
-          pickable: true,
-          onHover: ({index, picked}) => { this.setState({pagepick: !picked ? null : lng.length - 1 - index + 1 }); },
-          radiusMinPixels: 2,
-          radiusMaxPixels: 20,
-          getRadius: 10,
-          wrapLongitude: true,
-          getPosition: (object, {index,data,target}) => {
-            target[0] = lng[lng.length - 1 - index];
-            target[1] = lat[lng.length - 1 - index];
-            return target;
-          },
-          getFillColor: [100,100,50],
-          getLineColor: [0,0,0],
-        }));
+        const onHover = ({index, picked}) => this.setState({pagepick: picked ? maxtitles - 1 - index + 1 : null});
+        pointLayer.push(this.makePoints({lng, lat, onHover}));
       }
       if(!!titleLayers && !!pointLayer) { layers.push(...pointLayer, ...titleLayers) }
       if(!!pagepick && !!sims) {
