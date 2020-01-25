@@ -37,7 +37,7 @@ class App extends React.Component {
   constructor(props) {
     super(props)
     const placeToZoom = decodeURI(window.location.hash.slice(1));
-    this.state = {placeToZoom, searchboxtext: "", viewState: initialViewState, onlyFar: true, only100kTitles: true};
+    this.state = {placeToZoom, searchboxtext: "", viewState: initialViewState, onlyFar: true, only100kTitles: true, farsims: (new Set()), allsims: (new Set())};
     initSqlJS({locateFile: f => `./${f}`}).then(SQL => {
       this.state.SQL = SQL;
       this.makeAutocomplete();
@@ -50,8 +50,10 @@ class App extends React.Component {
       this.makeAutocomplete()
     }));
     Table.from(fetch("./pages.noindex.arrow")).then(p => updatepages(p));
-    Table.from(fetch("./topsFarPacked15.noindex.arrow")).then(farsims => this.setState({farsims}))
-    Table.from(fetch("./topsPacked15.noindex.arrow")).then(allsims => this.setState({allsims}))
+    [true, false].forEach(isFar => Array.from({length: 20}, (v,i) =>
+      Table.from(fetch(`./tops${isFar ? "Far" : ""}Packed.ps${i+1}.arrow`)).then(sim =>
+        (isFar ? this.state.farsims : this.state.allsims).add(sim.getColumn(`ps${i+1}`).toArray())
+    )))
   }
   makeAutocomplete() {
     if(this.state.SQL && this.state.autocompleteBuffer) {
@@ -151,7 +153,7 @@ class App extends React.Component {
       layers.push(pointLayer); layers.push(titleLayer);
       if(!!activePageHighlight && !!sims) {
         const pagepickcoords = [lng[activePageHighlight - 1], lat[activePageHighlight - 1]];
-        const pagesims = Array.from(sims.get(activePageHighlight).values()).filter(n => n > 0);
+        const pagesims = Array.from(sims.values(), c => c[activePageHighlight]).filter(n => n > 0);
         pagesims.sort((a,b) => (b & 255) - (a & 255));
         const {context: {viewport}} = pointLayer;
         const pagesimlats = pagesims.map(p => lat[(p >> 8) - 1]);
