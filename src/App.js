@@ -138,7 +138,7 @@ class App extends React.Component {
       // TODO: optimize TextLayer to be able to render a million strings into GPU buffers for 20M multi-icons
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
       if(finishedZoomOnLoad && !titleLayer) {
-        const count = only100kTitles ? 100000 : lng.length;
+        const count = only100kTitles ? 100000 : 500000;
         const onHover = ({index, picked}) => this.setState({pagepick: picked ? count - 1 - index + 1 : null});
         const onClick = ({index, picked}) => { this.setState({pageclick: picked ? count - 1 - index + 1 : null }) ; window.location.hash = title.get(count - 1 - index) };
         setTimeout(() => this.setState({[titleProp]: this.makeTitles({lng, lat, title, characterSet, onHover, onClick, count})}),0);
@@ -209,7 +209,7 @@ class App extends React.Component {
         {
           !only100kTitles ? null : (
             <div>
-              <input id="is100k" type="checkbox" checked={only100kTitles} onChange={e => window.confirm("Preparing a million titles to render takes a minute. Are you sure you want to wait?") ? this.setState({only100kTitles: false}) : true } />
+              <input id="is100k" type="checkbox" checked={only100kTitles} onChange={e => window.confirm("Preparing half a million titles to render takes a minute. Are you sure you want to wait?") ? this.setState({only100kTitles: false}) : true } />
               <label htmlFor="is100k"> top 100k labels only</label>
             </div>)
         }
