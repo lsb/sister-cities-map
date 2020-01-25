@@ -44,16 +44,27 @@ class App extends React.Component {
     });
   }
   componentDidMount() {
-    const updatepages = (pages) => this.setState({pages, lng: pages.getColumn('lng').toArray(), lat: pages.getColumn('lat').toArray(), title: pages.getColumn('title'), characterSet: utf8vectorToAtlas(pages.getColumn('title'))});
+    this.loadPages()
     fetch('./autocomplete.db').then(resp => resp.arrayBuffer().then(b => {
       this.state.autocompleteBuffer = b;
       this.makeAutocomplete()
     }));
-    Table.from(fetch("./pages.noindex.arrow")).then(p => updatepages(p));
+    this.loadSims()
+  }
+  loadSims() {
     [true, false].forEach(isFar => Array.from({length: 20}, (v,i) =>
       Table.from(fetch(`./tops${isFar ? "Far" : ""}Packed.ps${i+1}.arrow`)).then(sim =>
         (isFar ? this.state.farsims : this.state.allsims).add(sim.getColumn(`ps${i+1}`).toArray())
     )))
+  }
+  loadPages() {
+    Table.from(fetch("./pages.noindex.arrow")).then(pages => this.setState({
+      pages,
+      lng: pages.getColumn('lng').toArray(),
+      lat: pages.getColumn('lat').toArray(),
+      title: pages.getColumn('title'),
+      characterSet: utf8vectorToAtlas(pages.getColumn('title')),
+    }));
   }
   makeAutocomplete() {
     if(this.state.SQL && this.state.autocompleteBuffer) {
