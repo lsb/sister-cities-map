@@ -13,11 +13,11 @@
   z-index: 999;
   background-color: aliceblue;
   position: absolute;
-  left: 0.25in;
-  top: 0.25in;
-  margin: 0.25in;
+  left: 0in;
+  top: 0in;
+  margin: 0in;
   padding: 0.25in;
-  min-width: 3in;
+  width: 3in;
 }
 
 #colophon {
@@ -25,9 +25,9 @@
   z-index: 999;
   color: #333;
   position: absolute;
-  left: 0.25in;
-  bottom: 0.25in;
-  margin: 0.25in;
+  left: 0in;
+  bottom: 0in;
+  margin: 0in;
   padding: 0.25in;
 }
 
