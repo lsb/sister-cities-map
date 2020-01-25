@@ -33,8 +33,6 @@ export function utf8vectorToAtlas(strings) {
   return atlas;
 }
 
-const sqlselect = "select rowid from titles where titles match ? order by rowid limit 40";
-
 class App extends React.Component {
   constructor(props) {
     super(props)
@@ -264,6 +262,7 @@ class App extends React.Component {
   }
 }
 
+const sqlselect = "select rowid from titles where titles match ? order by rowid limit 40";
 const inputToLabelledIds = ({db,input,title}) => Array.from(inputToRowids({db,input}), i => ({value: i-1, label: title.get(i-1)}));
 const inputToRowids = function* ({db,input}) {
   const statement = db.prepare(sqlselect);
