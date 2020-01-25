@@ -5,7 +5,7 @@ import { FlyToInterpolator } from '@deck.gl/core';
 import { ScatterplotLayer, TextLayer, LineLayer } from '@deck.gl/layers';
 import { Table } from 'apache-arrow';
 import Select from 'react-select';
-var initSqlJS = require('sql.js');
+const initSqlJS = require('sql.js');
 
 const initialViewState = {
   longitude: -73.99,
