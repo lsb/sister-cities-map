@@ -233,6 +233,7 @@ class App extends React.Component {
         <Select
           options={ autocompleteIsDisabled ? [] : inputToLabelledIds({db, title, input: this.state.searchboxtext }) }
           value={ this.state.searchboxtext }
+          filterOption={() => true}
           onInputChange={ (searchboxtext) => this.setState({searchboxtext}) }
           onChange={ ({label, value}) => this.setState({...this.zoomTo({pageIndex: value, anchor: label}), searchboxtext: label}) }
           isDisabled={autocompleteIsDisabled}
