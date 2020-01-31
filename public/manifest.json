@@ -2,18 +2,6 @@
   "short_name": "Sister Cities Map",
   "name": "Map of sister cities, by Lee Butterman",
   "icons": [
-    {
-      "src": "pages.noindex.arrow",
-      "type": "application/octet-stream"
-    },
-    {
-      "src": "topsPacked20.noindex.arrow",
-      "type": "application/octet-stream"
-    },
-    {
-      "src": "sql-wasm.wasm",
-      "type": "application/octet-stream"
-    }
   ],
   "start_url": ".",
   "display": "standalone",
