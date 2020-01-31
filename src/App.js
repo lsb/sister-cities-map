@@ -6,6 +6,7 @@ import { ScatterplotLayer, TextLayer, LineLayer } from '@deck.gl/layers';
 import { Table } from 'apache-arrow';
 import Select from 'react-select';
 const initSqlJS = require('sql.js');
+const async = require('async');
 
 const initialViewState = {
   longitude: -73.99,
@@ -52,10 +53,17 @@ class App extends React.Component {
     this.loadSims()
   }
   loadSims() {
-    [true, false].forEach(isFar => Array.from({length: 20}, (v,i) =>
-      Table.from(fetch(`./tops${isFar ? "Far" : ""}Packed.ps${i+1}.arrow`)).then(sim =>
-        (isFar ? this.state.farsims : this.state.allsims).add(sim.getColumn(`ps${i+1}`).toArray())
-    )))
+    const queries = [].concat(...[true, false].map(isFar => Array.from({length: 20}, (v,i) =>
+      ({url: `./tops${isFar ? "Far": ""}Packed.ps${i+1}.arrow`,
+        column: `ps${i+1}`,
+        sink: (isFar ? this.state.farsims : this.state.allsims)}))));
+    async.eachLimit(queries, 4, async ({url, column, sink}, done) => {
+      const table = await Table.from(fetch(url));
+      const array = table.getColumn(column).toArray();
+      sink.add(array);
+      this.setState({simsloaded: this.state.farsims.length + this.state.allsims.length});
+      done();
+    })
   }
   loadPages() {
     Table.from(fetch("./pages.noindex.arrow")).then(pages => this.setState({
@@ -162,7 +170,7 @@ class App extends React.Component {
         this.setState({pointLayer: this.makePoints({lng, lat, onHover, onClick})});
       }
       layers.push(pointLayer); layers.push(titleLayer);
-      if(!!activePageHighlight && !!sims) {
+      if(!!activePageHighlight && !!sims && !!pointLayer && !!pointLayer.context) {
         const pagepickcoords = [lng[activePageHighlight - 1], lat[activePageHighlight - 1]];
         const pagesims = Array.from(sims.values(), c => c[activePageHighlight]).filter(n => n > 0);
         pagesims.sort((a,b) => (b & 255) - (a & 255));
