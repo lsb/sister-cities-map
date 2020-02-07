@@ -6,7 +6,6 @@ import { ScatterplotLayer, TextLayer, LineLayer } from '@deck.gl/layers';
 import { Table } from 'apache-arrow';
 import Select from 'react-select';
 const initSqlJS = require('sql.js');
-const async = require('async');
 
 const initialViewState = {
   longitude: -73.99,
@@ -50,20 +49,17 @@ class App extends React.Component {
       this.state.autocompleteBuffer = b;
       this.makeAutocomplete()
     }));
-    this.loadSims()
   }
   loadSims() {
     const queries = [].concat(...[true, false].map(isFar => Array.from({length: 20}, (v,i) =>
       ({url: `./tops${isFar ? "Far": ""}Packed.ps${i+1}.arrow`,
         column: `ps${i+1}`,
         sink: (isFar ? this.state.farsims : this.state.allsims)}))));
-    async.eachLimit(queries, 4, async ({url, column, sink}, done) => {
-      const table = await Table.from(fetch(url));
+    queries.forEach(({url, column, sink}) => Table.from(fetch(url)).then(table => {
       const array = table.getColumn(column).toArray();
       sink.add(array);
       this.setState({simsloaded: this.state.farsims.length + this.state.allsims.length});
-      done();
-    })
+    }));
   }
   loadPages() {
     Table.from(fetch("./pages.noindex.arrow")).then(pages => this.setState({
@@ -136,20 +132,21 @@ class App extends React.Component {
       return (<h1>loading very soon!</h1>);
     }
     let layers = []; let lhsSims = [];
-    const { pages, lng, lat, title, characterSet, pagepick, pageclick, allsims, farsims, onlyFar, only100kTitles, pointLayer, db, placeToZoom, finishedZoomOnLoad } = this.state;
+    const { pages, lng, lat, title, characterSet, blockHover, pagepick, pageclick, allsims, farsims, onlyFar, only100kTitles, pointLayer, db, placeToZoom, finishedZoomOnLoad } = this.state;
     const sims = onlyFar ? farsims : allsims;
     const titleProp = only100kTitles ? "first100kTitles" : "allTitles";
     const titleLayer = this.state[titleProp];
-    const activePageHighlight = pagepick || pageclick;
+    const activePageHighlight = blockHover ? null : pagepick || pageclick;
     if(pages != null) {
-      if(db && lat && lng && title && placeToZoom !== null) {
+      if(titleLayer && db && lat && lng && title && placeToZoom !== null) {
+        this.loadSims();
         const firstSuggestion = inputToLabelledIds({db, title, input: placeToZoom}).find(({label}) => label === placeToZoom);
         if(!firstSuggestion) {
           this.setState({placeToZoom: null, finishedZoomOnLoad: true});
         } else {
           const initialMove = this.zoomTo({pageIndex: firstSuggestion.value, anchor: placeToZoom});
           initialMove.viewState.onTransitionEnd = () => this.setState({finishedZoomOnLoad: true});
-          this.setState({...initialMove, placeToZoom: null});
+          setTimeout(() => this.setState({...initialMove, placeToZoom: null}), 0);
         }
       }
       // performance SIGNIFICANTLY increases for a million points and strings
@@ -158,15 +155,25 @@ class App extends React.Component {
       // making new text takes about a minute so that is a nonstarter
       // TODO: optimize TextLayer to be able to render a million strings into GPU buffers for 20M multi-icons
       // between not rendering two passes of foreground and background for the multi-icon sprite sheet, and halving the precision on all of the float buffers (16-bit for most, 32-bit for positions over which text is going), and maybe saving some room at the bottom of the sprite sheet for a large blank background around all text as 1.2M sprites to rasterize at the beginning, it would be possible to build on the existing functionality, but, not today.
-      if(finishedZoomOnLoad && !titleLayer) {
+      if(lat && lng && title && pointLayer && !titleLayer) {
         const count = only100kTitles ? 100000 : 500000;
-        const onHover = ({index, picked}) => this.setState({pagepick: picked ? count - 1 - index + 1 : null});
-        const onClick = ({index, picked}) => { this.setState({pageclick: picked ? count - 1 - index + 1 : null }) ; window.location.hash = title.get(count - 1 - index) };
+        const onHover = ({index, picked}) => this.setState({pagepick: picked ? count - 1 - index + 1 : null, blockHover: false});
+        const onClick = ({index, picked}) => {
+          const newpageclick = count - 1 - index + 1;
+          const isNew = picked && this.state.pageclick !== newpageclick;
+          this.setState({pageclick: isNew ? newpageclick : null, blockHover: !isNew});
+          window.location.hash = isNew ? title.get(count - 1 - index) : "";
+        };
         setTimeout(() => this.setState({[titleProp]: this.makeTitles({lng, lat, title, characterSet, onHover, onClick, count})}),0);
       }
       if(!pointLayer && lng) {
-        const onHover = ({index, picked}) => this.setState({pagepick: picked ? lng.length - 1 - index + 1 : null});
-        const onClick = ({index, picked}) => { this.setState({pageclick: picked ? lng.length - 1 - index + 1 : null }) ; window.location.hash = title.get(lng.length - 1 - index) };
+        const onHover = ({index, picked}) => this.setState({pagepick: picked ? lng.length - 1 - index + 1 : null, blockHover: false});
+        const onClick = ({index, picked}) => {
+          const newpageclick = lng.length - 1 - index + 1;
+          const isNew = picked && this.state.pageclick !== newpageclick;
+          this.setState({pageclick: isNew ? newpageclick : null, blockHover: !isNew });
+          window.location.hash = isNew ? title.get(lng.length - 1 - index) : "";
+        };
         this.setState({pointLayer: this.makePoints({lng, lat, onHover, onClick})});
       }
       layers.push(pointLayer); layers.push(titleLayer);
